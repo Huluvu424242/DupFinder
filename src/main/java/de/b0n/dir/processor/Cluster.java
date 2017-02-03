@@ -1,5 +1,7 @@
 package de.b0n.dir.processor;
 
+import de.b0n.dir.ClusterCallback;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Queue;
@@ -14,7 +16,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <G> Group type
  * @param <E> Element type
  */
-public class Cluster<G, E> {
+public class Cluster<G, E> implements ClusterCallback<G,E> {
 	private final Map<G, Queue<E>> map = new ConcurrentHashMap<G, Queue<E>>();
 
 	/**
@@ -22,6 +24,7 @@ public class Cluster<G, E> {
 
 	 * @return Eingegebenes Cluster ohne Gruppen mit nur einem Element
 	 */
+	@Override
 	public Cluster<G, E> removeUniques() {
 		for (G group : map.keySet()) {
 			Queue<E> elements = map.get(group);
@@ -32,6 +35,8 @@ public class Cluster<G, E> {
 		return this;
 	}
 
+
+
 	/**
 	 * Fügt ein Element seiner Gruppe hinzu.
 	 * Neue leere Gruppen werden erstellt.
@@ -41,6 +46,7 @@ public class Cluster<G, E> {
 	 * @param element
 	 *           Element, das hinzugefügt werden soll
 	 */
+	@Override
 	public void addGroupedElement(G group, E element) {
 		if (group == null) {
 			throw new IllegalArgumentException("Group darf nicht null sein.");

@@ -6,7 +6,6 @@ import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import de.b0n.dir.processor.Cluster;
 import de.b0n.dir.processor.DuplicateContentFinder;
 import de.b0n.dir.processor.DuplicateLengthFinder;
 
@@ -46,7 +45,7 @@ public class DupFinderConsole {
 		}
 		
 		ExecutorService threadPool = Executors.newWorkStealingPool();
-		Cluster<Long, File> cluster = DuplicateLengthFinder.getResult(directory, threadPool);
+		ClusterCallback<Long, File> cluster = DuplicateLengthFinder.getResult(directory, threadPool);
 		Collection<Queue<File>> fileQueues = cluster.values();
 		Queue<Queue<File>> duplicateContentFilesQueues = DuplicateContentFinder.getResult(threadPool, fileQueues);
 		printQueues(duplicateContentFilesQueues);
