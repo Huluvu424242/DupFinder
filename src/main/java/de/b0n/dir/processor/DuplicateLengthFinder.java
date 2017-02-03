@@ -23,7 +23,7 @@ public class DuplicateLengthFinder {
 	private final ExecutorService threadPool;
 
 	private final Queue<Future<?>> futures = new ConcurrentLinkedQueue<Future<?>>();
-	private final ClusterCallback<Long, File> result;
+	private final Cluster<Long, File> result;
 
 	/**
 	 * Bereitet für das gegebene Verzeichnis die Suche nach gleich großen
@@ -32,7 +32,7 @@ public class DuplicateLengthFinder {
 	 * @param threadPool Pool zur Ausführung der Suchen
 	 * @param folder     zu durchsuchendes Verzeichnis, muss existieren und lesbar sein
 	 */
-	private DuplicateLengthFinder(final File folder, final ExecutorService threadPool, final ClusterCallback clusterCallback) {
+	private DuplicateLengthFinder(final File folder, final ExecutorService threadPool, final Cluster cluster) {
 		if (!folder.exists()) {
 			throw new IllegalArgumentException(
 					"FEHLER: Parameter <Verzeichnis> existiert nicht: " + folder.getAbsolutePath());
@@ -48,10 +48,10 @@ public class DuplicateLengthFinder {
 
 		this.threadPool = threadPool;
 		this.folder = folder;
-		this.result=clusterCallback;
+		this.result=cluster;
 	}
 
-	private ClusterCallback<Long, File> execute() {
+	private Cluster<Long, File> execute() {
 		futures.add(threadPool.submit(new DuplicateLengthRunner(folder)));
 
 		while (!futures.isEmpty()) {
@@ -112,7 +112,7 @@ public class DuplicateLengthFinder {
      * @return Liefert eine Map nach Dateigröße strukturierten Queues zurück, in
      * denen die gefundenen Dateien abgelegt sind
      */
-    public static ClusterCallback<Long, File> getResult(final File folder, final ClusterCallback clusterCallback) {
+    public static Cluster<Long, File> getResult(final File folder, final ClusterCallback clusterCallback) {
         return getResult(folder, Executors.newWorkStealingPool(), clusterCallback);
     }
 
@@ -125,7 +125,7 @@ public class DuplicateLengthFinder {
      * @return Liefert eine Map nach Dateigröße strukturierten Queues zurück, in
      * denen die gefundenen Dateien abgelegt sind
      */
-    public static ClusterCallback<Long, File> getResult(final File folder, final ExecutorService threadPool, final ClusterCallback clusterCallback) {
+    public static Cluster<Long, File> getResult(final File folder, final ExecutorService threadPool, final ClusterCallback clusterCallback) {
         if (folder == null) {
             throw new IllegalArgumentException("folder may not be null.");
         }
@@ -134,7 +134,7 @@ public class DuplicateLengthFinder {
             throw new IllegalArgumentException("threadPool may not be null.");
         }
 
-        return new DuplicateLengthFinder(folder, threadPool,clusterCallback).execute().removeUniques();
+        return new DuplicateLengthFinder(folder, threadPool,new Cluster(clusterCallback)).execute().removeUniques();
     }
 }
 

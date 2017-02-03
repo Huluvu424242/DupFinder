@@ -16,16 +16,31 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @param <G> Group type
  * @param <E> Element type
  */
-public class Cluster<G, E> implements ClusterCallback<G,E> {
+public class Cluster<G, E> implements  ClusterCallback<G,E>{
+
+	private final ClusterCallback clusterCallback;
 	private final Map<G, Queue<E>> map = new ConcurrentHashMap<G, Queue<E>>();
+
+
+	public Cluster(){
+		this.clusterCallback=null;
+	}
+
+
+	public Cluster(final ClusterCallback clusterCallback){
+		this.clusterCallback=clusterCallback;
+	}
 
 	/**
 	 * Filtert Gruppen mit nur einem Element heraus.
 
 	 * @return Eingegebenes Cluster ohne Gruppen mit nur einem Element
 	 */
-	@Override
 	public Cluster<G, E> removeUniques() {
+		if(clusterCallback != null) {
+			clusterCallback.removeUniques();
+		}
+
 		for (G group : map.keySet()) {
 			Queue<E> elements = map.get(group);
 			if (elements.size() <= 1) {
@@ -46,8 +61,11 @@ public class Cluster<G, E> implements ClusterCallback<G,E> {
 	 * @param element
 	 *           Element, das hinzugefügt werden soll
 	 */
-	@Override
 	public void addGroupedElement(G group, E element) {
+		if(clusterCallback != null) {
+			clusterCallback.addGroupedElement(group, element);
+		}
+
 		if (group == null) {
 			throw new IllegalArgumentException("Group darf nicht null sein.");
 		}

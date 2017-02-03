@@ -11,6 +11,5 @@ public interface ClusterCallback<G, E> {
 
     public ClusterCallback<G, E> removeUniques();
     public void addGroupedElement(G group, E element);
-    public Collection<Queue<E>> values();
 
 }
