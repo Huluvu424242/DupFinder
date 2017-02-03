@@ -44,9 +44,10 @@ public class DupFinderConsole {
 			System.err.println(ERROR + UREADABLE_DIRECTORY + USAGE);
 			return;
 		}
-		
+
+		final ClusterCallback clusterCallback = new Cluster<Long, File>();
 		ExecutorService threadPool = Executors.newWorkStealingPool();
-		Cluster<Long, File> cluster = DuplicateLengthFinder.getResult(directory, threadPool);
+		ClusterCallback<Long, File> cluster = DuplicateLengthFinder.getResult(directory, threadPool, clusterCallback);
 		Collection<Queue<File>> fileQueues = cluster.values();
 		Queue<Queue<File>> duplicateContentFilesQueues = DuplicateContentFinder.getResult(threadPool, fileQueues);
 		printQueues(duplicateContentFilesQueues);
