@@ -4,11 +4,34 @@
 	<groupId>de.b0n</groupId>
 	<artifactId>DupFinder</artifactId>
 	<version>0.0.2</version>
+
+	<packaging>jar</packaging>
+
+	<name>DupFinder</name>
+	<description>Finds and lists files with duplicate content</description>
+	<inceptionYear>2017</inceptionYear>
 	<url>http://b0n.de/</url>
+
+	<licenses>
+		<license>
+			<url>https://www.gnu.org/licenses/gpl-3.0.de.html</url>
+			<name>GNU GENERAL PUBLIC LICENSE
+				Version 3, 29 June 2007
+			</name>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
 	</properties>
+
+	<prerequisites>
+		<maven>3.3.9</maven>
+	</prerequisites>
 
 	<dependencies>
 		<dependency>
@@ -43,17 +66,40 @@
 		</pluginManagement>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.0.0-M1</version>
+				<executions>
+					<execution>
+						<id>enforce-maven</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireMavenVersion>
+									<version>3.3.9</version>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.1</version>
+				<version>3.7.0</version>
 				<configuration>
 					<source>1.8</source>
 					<target>1.8</target>
+					<encoding>UTF-8</encoding>
+					<compilerArgument>-Xlint:all</compilerArgument>
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.7.7.201606060606</version>
+				<version>0.8.1</version>
 				<executions>
 					<execution>
 						<goals>
@@ -82,71 +128,72 @@
 				</configuration>
 			</plugin>
 			<plugin>
+				<!-- NOTE: We don't need a groupId specification because the group is
+                    org.apache.maven.plugins ...which is assumed by default. -->
 				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.1.0</version>
 				<executions>
 					<execution>
 						<id>package-assemblies</id>
-						<phase>install</phase>
+						<phase>package</phase>
 						<goals>
 							<goal>single</goal>
 						</goals>
 						<configuration>
+							<tarLongFileMode>posix</tarLongFileMode>
 							<descriptorRefs>
 								<descriptorRef>jar-with-dependencies</descriptorRef>
-								<descriptorRef>src</descriptorRef>
 							</descriptorRefs>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
-				<configuration>
-				</configuration>
+				<version>3.0.1</version>
 				<executions>
 					<execution>
-						<id>aggregate-jar</id>
+						<phase>package</phase>
+						<id>attach-javadocs</id>
 						<goals>
-							<goal>aggregate-jar</goal>
+							<goal>jar</goal>
 						</goals>
-						<phase>site</phase>
-						<configuration>
-						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>3.0.1</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar-no-fork</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>
 		</plugins>
 	</build>
-	<reporting>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>2.10.4</version>
-				<configuration>
-				</configuration>
-				<reportSets>
-					<reportSet>
-						<id>non-aggregate</id>
-						<configuration>
-						</configuration>
-						<reports>
-							<report>javadoc</report>
-						</reports>
-					</reportSet>
-					<reportSet>
-						<id>aggregate</id>
-						<configuration>
-						</configuration>
-						<reports>
-							<report>aggregate</report>
-						</reports>
-					</reportSet>
-				</reportSets>
-			</plugin>
-		</plugins>
-	</reporting>
+
+
+	<organization>
+		<name>mkymikky</name>
+		<url>http://b0n.de/</url>
+	</organization>
+
+	<developers>
+		<developer>
+			<name>mkymikky</name>
+			<email>mkymikky@antispam</email>
+			<roles>
+				<role>project owner</role>
+				<role>developer</role>
+			</roles>
+		</developer>
+	</developers>
+
 	<pluginRepositories>
 		<pluginRepository>
 			<snapshots>
@@ -167,16 +214,38 @@
 			<url>http://jcenter.bintray.com</url>
 		</repository>
 	</repositories>
+
 	<distributionManagement>
-		<repository>
-			<id>bintray-release</id>
-			<name>oss-jfrog-artifactory-releases</name>
-			<url>https://oss.jfrog.org/artifactory/oss-release-local</url>
-		</repository>
 		<snapshotRepository>
-			<id>bintray-snapshots</id>
+			<id>bintray-mkymikky-de.b0n</id>
 			<name>oss-jfrog-artifactory-snapshots</name>
 			<url>https://oss.jfrog.org/artifactory/oss-snapshot-local</url>
 		</snapshotRepository>
+		<repository>
+			<id>bintray-mkymikky-de.b0n</id>
+			<name>mkymikky-de.b0n</name>
+			<url>https://api.bintray.com/maven/mkymikky/de.b0n/${project.artifactId}/;publish=0
+			</url>
+		</repository>
 	</distributionManagement>
+
+
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>2.9</version>
+				<reportSets>
+					<reportSet>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</reportSet>
+				</reportSets>
+			</plugin>
+		</plugins>
+	</reporting>
+
+
 </project>
