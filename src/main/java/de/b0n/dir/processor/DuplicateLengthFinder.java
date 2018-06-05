@@ -115,13 +115,9 @@ public class DuplicateLengthFinder extends AbstractProcessor implements Runnable
 	 * 
 	 * @param folder
 	 *            Zu durchsuchendes Verzeichnis
-	 * @param threadPool
-	 *            Pool zur Ausführung der Suchen
 	 * @param callback
 	 *            Ruft den Callback bei jedem neu betretenen Verzeichnis auf
 	 *            (darf null sein)
-	 * @return Liefert eine Map nach Dateigröße strukturierten Queues zurück, in
-	 *         denen die gefundenen Dateien abgelegt sind
 	 */
 	public static void getResult(final File folder, DuplicateLengthFinderCallback callback) {
 		if (folder == null) {

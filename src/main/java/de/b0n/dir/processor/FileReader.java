@@ -4,6 +4,7 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -97,7 +98,7 @@ public class FileReader {
 
 	/**
 	 * Liefert ein Byte aus dem geöffneten Dateistream zur Inhaltsanalyse.
-	 * @see InputStream.read()
+	 * @see InputStream#read()
 	 * @return Wert gemäß InputStream.read()
 	 */
 	public int read() {
