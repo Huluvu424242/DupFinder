@@ -1,5 +1,8 @@
 language: java
 
+maven:
+  version: 3.3.9
+
 jdk:
   - oraclejdk8
   - openjdk8
