@@ -5,6 +5,7 @@ jdk:
   - openjdk8
   - openjdk9
 
+before_install: "mvn --version"
 
 script: "mvn clean install"
 
