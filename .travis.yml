@@ -18,6 +18,7 @@ before_install:
 
 script:
   - "mvn --version"
+  - "mvn dependency:tree"
   - "mvn clean install"
 
 after_success:
