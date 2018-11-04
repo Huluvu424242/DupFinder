@@ -1,186 +1,111 @@
 package de.b0n.dir.processor;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 /**
  * Sucht in einem gegebenen Verzeichnis und dessen Unterverzeichnissen nach
  * Dateien und sortiert diese nach Dateigröße.
- * 
- * @author Claus
- *
  */
 public class DuplicateLengthFinder implements Runnable {
 
-	private final ExecutorService threadPool;
 	private final File folder;
-	Map<Long, Queue<File>> result;
+	private final DuplicateLengthFinderCallback callback;
+	private final Executor executor;
 
-	/**
-	 * Bereitet für das gegebene Verzeichnis die Suche nach gleich großen Dateien vor. 
-	 * @param threadPool Pool zur Ausführung der Suchen
-	 * @param folder zu durchsuchendes Verzeichnis, muss existieren und lesbar sein
-	 */
-	private DuplicateLengthFinder(final ExecutorService threadPool, final File folder, Map<Long, Queue<File>> result) {
-		if (!folder.exists()) {
-			throw new IllegalArgumentException("FEHLER: Parameter <Verzeichnis> existiert nicht: " + folder.getAbsolutePath());
-		}
-		if (!folder.isDirectory()) {
-			throw new IllegalArgumentException("FEHLER: Parameter <Verzeichnis> ist kein Verzeichnis: " + folder.getAbsolutePath());
-		}
-		if (!folder.canRead()) {
-			throw new IllegalArgumentException("FEHLER: Parameter <Verzeichnis> ist nicht lesbar: " + folder.getAbsolutePath());
-		}
-
-		this.threadPool = threadPool;
+	private DuplicateLengthFinder(final File folder, DuplicateLengthFinderCallback callback, Executor executor) {
 		this.folder = folder;
-		this.result = result;
+		this.callback = callback;
+		this.executor = executor;
 	}
 
 	/**
-	 * Iteriert durch die Elemente im Verzeichnis und legt neue Suchen für Verzeichnisse an.
-	 * Dateien werden sofort der Größe nach abgelegt.
-	 * Wartet die Unterverzeichnis-Suchen ab und merged deren Ergebnisdateien.
-	 * Liefert das Gesamtergebnis zurück.
+	 * Iteriert durch die Elemente im Verzeichnis und legt neue Suchen für
+	 * Verzeichnisse an. Dateien werden sofort der Größe nach abgelegt. Wartet die
+	 * Unterverzeichnis-Suchen ab und merged deren Ergebnisdateien. Liefert das
+	 * Gesamtergebnis zurück.
 	 */
 	@Override
 	public void run() {
-		Queue<Future<?>> futures = new ConcurrentLinkedQueue<Future<?>>();
+		callback.enteredNewFolder(folder);
 
-		if (folder.list() == null) {
-			System.out.println("Could not read content of folder: " + folder.getAbsolutePath());
-			return;
+		List<File> folderContent = readContent(folder);
+		folderContent.parallelStream().filter(File::isDirectory)
+				.forEach(file -> executor.submit(new DuplicateLengthFinder(file, callback, executor)));
+		folderContent.parallelStream().filter(File::isFile)
+				.forEach(file -> callback.addGroupedElement(Long.valueOf(file.length()), file));
+	}
+
+	private List<File> readContent(File folder) {
+		String[] folderContents = folder.list();
+		if (folderContents == null) {
+			callback.unreadableFolder(folder);
+			return Collections.emptyList();
 		}
 
-		for (String fileName : folder.list()) {
-			File file = new File(folder.getAbsolutePath() + System.getProperty("file.separator") + fileName);
+		return Arrays.stream(folderContents).parallel()
+				.map(fileName -> new File(folder.getAbsolutePath() + System.getProperty("file.separator") + fileName))
+				.collect(Collectors.toList());
+	}
 
-			if (file.isDirectory()) {
-				try {
-					futures.add(threadPool.submit(new DuplicateLengthFinder(threadPool, file, result)));
-				} catch (IllegalArgumentException e) {
-					System.err.println("Given Folder is invalid, continue with next: " + file.getAbsolutePath());
-					continue;
+	/**
+	 * Einstiegsmethode zum Durchsuchen eines Verzeichnisses nach Dateien gleicher
+	 * Größe.
+	 * 
+	 * @param folder
+	 *            Zu durchsuchendes Verzeichnis
+	 * @return Liefert ein Cluster nach Dateigröße strukturierten Queues zurück, in
+	 *         denen die gefundenen Dateien abgelegt sind
+	 */
+	public static Map<Long, List<File>> getResult(final File folder) {
+		Map<Long, List<File>> result = new HashMap<>();
+		DuplicateLengthFinderCallback callback = new DuplicateLengthFinderCallback() {
+
+			@Override
+			public void addGroupedElement(Long size, File file) {
+				synchronized (this) {
+					List<File> group = result.computeIfAbsent(size, k -> new ArrayList<File>());
+					group.add(file);
 				}
 			}
+		};
 
-			if (file.isFile()) {
-				addFileBySize(result, file);
-			}
-		}
+		getResult(folder, callback);
 
-		for (Future<?> future : futures) {
-			try {
-				future.get();
-			} catch (InterruptedException | ExecutionException e) {
-				// This is a major problem, notify user and try to recover
-				e.printStackTrace();
-			}
-		}
-
-		return;
+		return result;
 	}
 
 	/**
-	 * Fügt eine Datei ihrer Größe entsprechend in einer passenden Queue der Map ein.
-	 * @param filesizeMap Map mit allen Dateigrößen als Queue welche die Dateien enthalten
-	 * @param file Datei zum hinzufügen zu einer passenden Queue
-	 * @return Liefert die eingelieferte Map zurück
+	 * Einstiegsmethode zum Durchsuchen eines Verzeichnisses nach Dateien gleicher
+	 * Größe.
+	 * 
+	 * @param folder
+	 *            Zu durchsuchendes Verzeichnis
+	 * @param callback
+	 *            Ruft den Callback bei jedem neu betretenen Verzeichnis auf
 	 */
-	private Map<Long, Queue<File>> addFileBySize(Map<Long, Queue<File>> filesizeMap, File file) {
-		if (filesizeMap == null) {
-			throw new IllegalArgumentException("filesizeMap darf nicht null sein.");
-		}
-		if (file == null) {
-			throw new IllegalArgumentException("file darf nicht null sein.");
-		}
-		
-		long fileSize = file.length();
-		Queue<File> filesOneSize = filesizeMap.get(fileSize);
-		if (filesOneSize == null) {
-			filesOneSize = insertQueueToMap(filesizeMap, fileSize);
-		}
-		filesOneSize.add(file);
-
-		return filesizeMap;
-	}
-
-	/**
-	 * Erstellt bei Bedarf synchronisiert eine neue Queue für den fehlenden Schlüssel der Map.
-	 * @param map Die Map, welche um einen evtl. fehlenden Schlüssel ergänzt wird
-	 * @param key Schlüssel, für den die Queue erstellt wird
-	 * @return Queue, welche in der Map zu dem Schlüssel existiert oder erstellt wurde
-	 */
-	private Queue<File> insertQueueToMap(Map<Long, Queue<File>> map, long key) {
-		Queue<File> queueOfKey;
-		synchronized (map) {
-			queueOfKey = map.get(key);
-			if (queueOfKey == null) {
-				queueOfKey = new ConcurrentLinkedQueue<File>();
-				map.put(key, queueOfKey);
-			}
-		}
-		return queueOfKey;
-	}
-
-	/**
-	 * Filtert Queues mit nur einer Datei heraus. Diese können keine Dubletten sein.
-	 * @param filesizeMap Map mit allen Dateigrößen als Queue welche die Dateien enthalten
-	 * @return Liefert die eingelieferte bestehende Map ohne Einzelelemente zurück
-	 */
-	private static Map<Long, Queue<File>> filterUniqueSizes(Map<Long, Queue<File>> filesizeMap) {
-		for (Long size : filesizeMap.keySet()) {
-			Queue<File> files = filesizeMap.get(size);
-			if (files.size() <= 1) {
-				filesizeMap.remove(size);
-			}
-		}
-		return filesizeMap;
-	}
-
-	/**
-	 * Einstiegstmethode zum Durchsuchen eines Verzeichnisses nach Dateien gleicher Größe.
-	 * @param threadPool Pool zur Ausführung der Suchen
-	 * @param folder Zu durchsuchendes Verzeichnis
-	 * @return Liefert eine Map nach Dateigröße strukturierten Queues zurück, in denen die gefundenen Dateien abgelegt sind 
-	 */
-	public static Map<Long, Queue<File>> getResult(final ExecutorService threadPool, final File folder) {
-		return getResult(threadPool, folder, null);
-	}
-
-	/**
-	 * Einstiegstmethode zum Durchsuchen eines Verzeichnisses nach Dateien gleicher Größe.
-	 * @param threadPool Pool zur Ausführung der Suchen
-	 * @param folder Zu durchsuchendes Verzeichnis
-	 * @return Liefert eine Map nach Dateigröße strukturierten Queues zurück, in denen die gefundenen Dateien abgelegt sind 
-	 */
-	public static Map<Long, Queue<File>> getResult(final ExecutorService threadPool, final File folder, Map<Long, Queue<File>> result) {
-		if (threadPool == null) {
-			throw new IllegalArgumentException("threadPool may not be null.");
-		}
+	public static void getResult(final File folder, DuplicateLengthFinderCallback callback) {
 		if (folder == null) {
 			throw new IllegalArgumentException("folder may not be null.");
 		}
-
-		if (result == null) {
-			result = new ConcurrentHashMap<Long, Queue<File>>();
+		if (callback == null) {
+			throw new IllegalArgumentException("callback may not be null.");
+		}
+		if (!folder.exists()) {
+			throw new IllegalArgumentException("folder must exist.");
+		}
+		if (!folder.isDirectory()) {
+			throw new IllegalArgumentException("folder must be a valid folder.");
 		}
 
-		Future<?> future = threadPool.submit(new DuplicateLengthFinder(threadPool, folder, result));
-
-		try {
-			future.get();
-		} catch (InterruptedException | ExecutionException e) {
-			// This is a critical problem, nothing to recover, abort
-			throw new IllegalStateException("Unrecoverable problem, aborting file search", e);
-		}
-
-		return filterUniqueSizes(result);
+		Executor executor = new Executor();
+		executor.submit(new DuplicateLengthFinder(folder, callback, executor));
+		executor.consolidate();
 	}
 }
